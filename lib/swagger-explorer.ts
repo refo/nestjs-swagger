@@ -56,14 +56,17 @@ export class SwaggerExplorer {
   private readonly metadataScanner = new MetadataScanner();
   private readonly schemas: SchemaObject[] = [];
   private readonly schemaRefsStack: string[] = [];
+  private useMethodNameForOperations: boolean;
 
   constructor(private readonly schemaObjectFactory: SchemaObjectFactory) {}
 
   public exploreController(
     wrapper: InstanceWrapper<Controller>,
     modulePath?: string,
-    globalPrefix?: string
+    globalPrefix?: string,
+    useMethodNameForOperations?: boolean
   ) {
+    this.useMethodNameForOperations = useMethodNameForOperations;
     const { instance, metatype } = wrapper;
     const prototype = Object.getPrototypeOf(instance);
     const documentResolvers: DenormalizedDocResolvers = {
@@ -121,7 +124,7 @@ export class SwaggerExplorer {
     const denormalizedPaths = this.metadataScanner.scanFromPrototype<
       any,
       DenormalizedDoc
-    >(instance, prototype, name => {
+    >(instance, prototype, (name) => {
       const targetCallback = prototype[name];
       const excludeEndpoint = exploreApiExcludeEndpointMetadata(
         instance,
@@ -186,8 +189,8 @@ export class SwaggerExplorer {
       exploreGlobalApiHeaderMetadata
     ];
     const globalMetadata = globalExplorers
-      .map(explorer => explorer.call(explorer, metatype))
-      .filter(val => !isUndefined(val))
+      .map((explorer) => explorer.call(explorer, metatype))
+      .filter((val) => !isUndefined(val))
       .reduce((curr, next) => ({ ...curr, ...next }), {});
 
     return globalMetadata;
@@ -218,7 +221,7 @@ export class SwaggerExplorer {
   }
 
   private getOperationId(instance: object, method: Function): string {
-    if (instance.constructor) {
+    if (instance.constructor && !this.useMethodNameForOperations) {
       return `${instance.constructor.name}_${method.name}`;
     }
     return method.name;
@@ -332,7 +335,7 @@ export class SwaggerExplorer {
   }
 
   private registerExtraModels(extraModels: Function[]) {
-    extraModels.forEach(item =>
+    extraModels.forEach((item) =>
       this.schemaObjectFactory.exploreModelSchema(item, this.schemas)
     );
   }
